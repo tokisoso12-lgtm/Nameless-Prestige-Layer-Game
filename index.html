@@ -1,0 +1,114 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>이름없는 환생 레이어 게임</title>
+
+  <!-- CSS 파일 연결 -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- JavaScript 파일 연결 -->
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <div class="tab-main">
+    <button class="tab-btn active"
+      onclick="openTab(event, 'obj-tab')">오브젝트</button>
+    <button class="tab-btn"
+      onclick="openTab(event, 'relic-tab')">룬</button>
+    <button class="tab-btn"
+      onclick="openTab(event, 'save-tab')">저장</button>
+  </div>
+
+  <!-- 오브젝트 탭 -->
+  <div id="obj-tab" class="tab-content active">
+    <div class="box-2">
+      <p class="common">
+        자금(funds)
+        <span id="fund_text" class="money"></span>
+        개를 보유 중입니다
+      </p>
+    </div>
+
+    <p class="common">
+      배율 (multi)
+      <span id="multi-text" class="money multi"></span>
+      개를 보유 중입니다
+    </p>
+    <button onclick="game.multi.reset_to_get()"
+      class="prestige_btn multi">
+      <span id="multi-gain-text"></span> 배율 획득
+    </button>
+
+    <p class="common">
+      환생 (rebirth)
+      <span id="rebirth-text" class="money rebirth"></span>
+      개를 보유 중입니다
+    </p>
+    <button onclick="game.rebirth.reset_to_get()"
+      class="prestige_btn rebirth">
+      <span id="rebirth-gain-text"></span> 환생 획득
+    </button>
+
+    <p class="common">
+      울트라 (ultra)
+      <span id="ultra-text" class="money ultra"></span>
+      개를 보유 중입니다
+    </p>
+    <button onclick="game.ultra.reset_to_get()"
+      class="prestige_btn ultra">
+      <span id="ultra-gain-text"></span> 울트라 획득
+    </button>
+
+    <p class="common">
+      명성 (prestige)
+      <span id="prestige-text" class="money prestige"></span>
+      개를 보유 중입니다
+    </p>
+    <button onclick="game.prestige.reset_to_get()"
+      class="prestige_btn prestige">
+      <span id="prestige-gain-text"></span> 명성 획득
+    </button>
+
+    <p class="common">
+      메가 (mega)
+      <span id="mega-text" class="money mega"></span>
+      개를 보유 중입니다
+    </p>
+    <button onclick="game.mega.reset_to_get()"
+      class="prestige_btn mega">
+      <span id="mega-gain-text"></span> 메가 획득
+    </button>
+
+    <p class="coming_soon">Coming Soon...</p>
+  </div>
+
+  <!-- 룬 탭 -->
+  <div id="relic-tab" class="tab-content">
+    <p class="common">
+      점수(score)
+      <span id="score_text" class="money"></span>
+      개를 보유 중입니다
+    </p>
+
+    <button id="rune-roll-button">룬 뽑기 (score 100)</button>
+    <p id="rune-result">룬을 뽑아 보세요!</p>
+    <div id="rune-inventory"></div>
+
+    <p class="coming_soon">Coming Soon...</p>
+  </div>
+
+  <!-- 업그레이드 탭: 현재 숨겨진 상태 -->
+  <div id="upgrade-tab" class="tab-content">
+    <div id="upgrade_container"></div>
+    <p class="coming_soon">Coming Soon...</p>
+  </div>
+
+  <!-- 설정 탭 -->
+  <div id="save-tab" class="tab-content">
+    <button class="reset_btn" id="reset-button">세이브 리셋</button>
+  </div>
+</body>
+</html>
