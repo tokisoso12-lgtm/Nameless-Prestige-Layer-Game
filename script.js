@@ -1,0 +1,1085 @@
+
+"use strict";
+
+// ========================================
+// 1. 탭 전환
+// ========================================
+
+function openTab(evt, tabId) {
+  document.querySelectorAll(".tab-content").forEach(tab => {
+    tab.classList.remove("active");
+  });
+
+  document.querySelectorAll(".tab-btn").forEach(button => {
+    button.classList.remove("active");
+  });
+
+  document.getElementById(tabId).classList.add("active");
+  evt.currentTarget.classList.add("active");
+}
+
+// ========================================
+// 2. 큰 숫자 클래스
+// 숫자를 mantissa × 10^exponent 형태로 저장
+// ========================================
+
+/**
+* 지수적 단위 쌉가능
+*/
+class Big_Num {
+  /**
+  * @param {number} mantissa - 숫자의 가수
+  * @param {number} exponent - 숫자의 지수
+  */
+  constructor(mantissa, exponent) {
+    this.mantissa = mantissa;
+    this.exponent = exponent;
+    this.normalize();
+  }
+
+  normalize() {
+    if (this.mantissa === 0) {
+      this.exponent = 0;
+      return this;
+    }
+
+    const e = Math.floor(Math.log10(Math.abs(this.mantissa)));
+
+    this.mantissa /= 10 ** e;
+    this.exponent += e;
+
+    const decimal = this.exponent - Math.floor(this.exponent);
+
+    this.mantissa *= 10 ** decimal;
+    this.exponent = Math.floor(this.exponent);
+
+    return this;
+  }
+
+  copy() {
+    return new Big_Num(this.mantissa, this.exponent);
+  }
+
+  add(other) {
+    if (!(other instanceof Big_Num)) {
+      other = new Big_Num(other, 0);
+    }
+
+    const result = this.copy();
+    const dif = other.exponent - this.exponent;
+
+    if (dif > 0) {
+      result.exponent = other.exponent;
+
+      if (dif < 15) {
+        result.mantissa =
+          this.mantissa * 10 ** -dif + other.mantissa;
+      } else {
+        result.mantissa = other.mantissa;
+      }
+    } else {
+      if (-dif < 15) {
+        result.mantissa += other.mantissa * 10 ** dif;
+      }
+    }
+
+    return result.normalize();
+  }
+
+  sub(other) {
+    if (!(other instanceof Big_Num)) {
+      other = new Big_Num(other, 0);
+    }
+
+    const result = this.copy();
+    const dif = other.exponent - result.exponent;
+
+    if (dif > 0) {
+      if (dif < 15) {
+        result.mantissa =
+          result.mantissa - other.mantissa * 10 ** dif;
+      } else {
+        result.mantissa = -other.mantissa;
+        result.exponent = other.exponent;
+      }
+    } else if (-dif < 15) {
+      result.mantissa -= other.mantissa * 10 ** dif;
+    }
+
+    return result.normalize();
+  }
+
+  mul(other) {
+    if (!(other instanceof Big_Num)) {
+      other = new Big_Num(other, 0);
+    }
+
+    return new Big_Num(
+      this.mantissa * other.mantissa,
+      this.exponent + other.exponent
+    );
+  }
+
+  div(other) {
+    if (!(other instanceof Big_Num)) {
+      other = new Big_Num(other, 0);
+    }
+
+    return new Big_Num(
+      this.mantissa / other.mantissa,
+      this.exponent - other.exponent
+    );
+  }
+
+  format() {
+    const unit = [
+      "", "K", "M", "B", "T",
+      "Qa", "Qt", "Sx", "Sp", "Oc", "No"
+    ];
+
+    const value = this.copy();
+
+    if (value.mantissa === 0) return "0.00";
+
+    if (value.exponent < 0) {
+      if (value.exponent < -324) return "0.00";
+      return (
+        value.mantissa * 10 ** value.exponent
+      ).toFixed(2);
+    }
+
+    if (value.exponent < 33) {
+      const index = Math.floor(value.exponent / 3);
+      const number = value.mantissa *
+        10 ** (value.exponent % 3);
+
+      if (index < unit.length) {
+        return `${number.toFixed(
+          Math.max(0, 2 - value.exponent % 3)
+        )} ${unit[index]}`;
+      }
+    }
+
+    const valueSuper = Math.log10(value.exponent);
+
+    if (valueSuper < 15) {
+      return `${value.mantissa.toFixed(2)}e${value.exponent.toLocaleString()}`;
+    }
+
+    return '"The Large Number"';
+  }
+
+  compare(other) {
+    if (!(other instanceof Big_Num)) {
+      other = new Big_Num(other, 0);
+    }
+
+    if (this.mantissa === 0 && other.mantissa === 0) return 0;
+    if (this.mantissa === 0) return other.mantissa > 0 ? -1 : 1;
+    if (other.mantissa === 0) return this.mantissa > 0 ? 1 : -1;
+
+    const aNegative = this.mantissa < 0;
+    const bNegative = other.mantissa < 0;
+
+    if (aNegative !== bNegative) {
+      return aNegative ? -1 : 1;
+    }
+
+    let result;
+
+    if (this.exponent !== other.exponent) {
+      result = this.exponent > other.exponent ? 1 : -1;
+    } else {
+      result = this.mantissa > other.mantissa
+        ? 1
+        : this.mantissa < other.mantissa ? -1 : 0;
+    }
+
+    return aNegative ? -result : result;
+  }
+
+  gt(other) {
+    return this.compare(other) > 0;
+  }
+
+  gte(other) {
+    return this.compare(other) >= 0;
+  }
+
+  lt(other) {
+    return this.compare(other) < 0;
+  }
+
+  lte(other) {
+    return this.compare(other) <= 0;
+  }
+
+  eq(other) {
+    return this.compare(other) === 0;
+  }
+
+  neq(other) {
+    return this.compare(other) !== 0;
+  }
+
+  random() {
+    return this.copy().mul(Math.random());
+  }
+
+  root() {
+    return new Big_Num(
+      this.mantissa ** 0.5,
+      this.exponent / 2
+    );
+  }
+
+  floor() {
+    if (this.mantissa === 0) return new Big_Num(0, 0);
+
+    if (this.exponent < 0) {
+      return new Big_Num(this.mantissa < 0 ? -1 : 0, 0);
+    }
+
+    if (this.exponent >= 15) return this.copy();
+
+    return new Big_Num(
+      Math.floor(this.mantissa * 10 ** this.exponent),
+      0
+    );
+  }
+
+  toNumber() {
+    if (this.exponent > 308 || this.exponent < -324) {
+      throw new Error("Big_Num이 Number 범위를 벗어났습니다!");
+    }
+
+    return this.mantissa * 10 ** this.exponent;
+  }
+
+  fraction() {
+    return this.copy().sub(this.copy().floor());
+  }
+
+  toSafeNumber() {
+    if (this.exponent > 15 || this.exponent < -15) {
+      throw new Error(
+        "pow 지수가 현재 Big_Num exponent 시스템 범위를 초과했습니다."
+      );
+    }
+
+    return this.mantissa * 10 ** this.exponent;
+  }
+
+  log10() {
+    if (this.mantissa <= 0) {
+      throw new Error("0 이하의 값에는 log10을 사용할 수 없습니다!");
+    }
+
+    return new Big_Num(
+      Math.log10(this.mantissa) + this.exponent,
+      0
+    );
+  }
+
+  pow(other) {
+    if (!(other instanceof Big_Num)) {
+      other = new Big_Num(other, 0);
+    }
+
+    if (this.mantissa <= 0) {
+      throw new Error("0 이하의 수에는 pow를 사용할 수 없습니다.");
+    }
+
+    const log = this.copy().log10().mul(other);
+    const exponent = log.copy().floor();
+    const decimal = log.copy().fraction();
+
+    return new Big_Num(
+      10 ** decimal.toSafeNumber(),
+      exponent.toSafeNumber()
+    );
+  }
+}
+
+// ========================================
+// 3. 화폐 클래스
+// ========================================
+
+class Null_Currency {
+  constructor(count) {
+    this.count = count instanceof Big_Num
+      ? count
+      : new Big_Num(count, 0);
+  }
+}
+
+class Base_Currency extends Null_Currency {
+  constructor(count) {
+    super(count);
+    this.base_count = this.count.copy();
+  }
+
+  reset() {
+    this.count = this.base_count.copy();
+  }
+}
+
+class Prestige_Null_Currency extends Base_Currency {
+  constructor(count, reset_list) {
+    super(count);
+
+    this.reset_list = Array.isArray(reset_list)
+      ? reset_list
+      : [reset_list];
+  }
+
+  reset_to_get() {
+    this.to_income();
+
+    for (const value of this.reset_list) {
+      value.reset();
+    }
+
+    playSound("prestige")
+  }
+
+  to_income() {}
+}
+
+class Prestige_Return_Currency extends Prestige_Null_Currency {
+  constructor(count, reset_list, under_currency, multi) {
+    super(count, reset_list);
+    this.under_currency = under_currency;
+    this.multi = multi;
+  }
+
+  to_income() {
+    const get = this.under_currency.count.copy();
+    this.count = this.count.copy().add(
+      this.income_calculate(get)
+    );
+  }
+
+  income_calculate(out) {
+    return out.mul(this.multi.count);
+  }
+}
+
+class Prestige_Formula_Currency extends Prestige_Return_Currency {
+  constructor(
+    count, reset_list, under_currency, multi,
+    gain_base, gain_divisor, gain_offset
+  ) {
+    super(count, reset_list, under_currency, multi);
+
+    this.gain_base = gain_base;
+    this.gain_divisor = gain_divisor;
+    this.gain_offset = gain_offset;
+  }
+
+  income_calculate(out) {
+    return this.gain_base.copy()
+      .pow(
+        out.copy().log10()
+          .div(this.gain_divisor.copy())
+          .sub(this.gain_offset.copy())
+      )
+      .mul(this.multi.count.copy().add(1));
+  }
+
+  Earn_display() {
+    if (this.under_currency.count.neq(0)) {
+      try {
+        return this.income_calculate(
+          this.under_currency.count
+        ).format();
+      } catch (error) {
+        return "0.00";
+      }
+    }
+
+    return "0.00";
+  }
+}
+
+// ========================================
+// 4. 룬 시스템
+// ========================================
+
+class Null_Rune extends Base_Currency {
+  constructor(count, name, chance) {
+    super(count);
+    this.name = name;
+    this.chance = chance;
+  }
+
+  gain(amount = 1) {
+    this.count = this.count.copy().add(amount);
+  }
+}
+
+class Null_Runes {
+  constructor(runes, cost) {
+    this.runes = Array.isArray(runes) ? runes : [runes];
+    this.cost = cost instanceof Big_Num
+      ? cost
+      : new Big_Num(cost, 0);
+  }
+
+  roll() {
+    if (this.runes.length === 0) return null;
+
+    const totalChance = this.runes.reduce(
+      (sum, rune) => sum + rune.chance, 0
+    );
+
+    if (
+      !Number.isFinite(totalChance) ||
+      totalChance <= 0 ||
+      this.runes.some(
+        rune => !Number.isFinite(rune.chance) || rune.chance < 0
+      )
+    ) {
+      throw new Error("룬의 획득 확률을 확인해 주세요.");
+    }
+
+    let random = Math.random() * totalChance;
+
+    for (const rune of this.runes) {
+      random -= rune.chance;
+
+      if (random < 0) {
+        rune.gain();
+        return rune;
+      }
+    }
+
+    playSound("gacha");
+
+    const rune = this.runes[this.runes.length - 1];
+    rune.gain();
+    return rune;
+  }
+}
+
+// ========================================
+// 5. 업그레이드 클래스
+// ========================================
+
+class Null_Upgrade {
+  constructor(currency, cost) {
+    this.currency = currency;
+    this.cost = cost instanceof Big_Num
+      ? cost
+      : new Big_Num(cost, 0);
+  }
+
+  buy() {
+    if (!this.currency.count.gte(this.cost)) return false;
+
+    this.currency.count = this.currency.count.copy().sub(this.cost);
+    this.effect();
+    return true;
+  }
+
+  effect() {}
+}
+
+class Increase_Upgrade extends Null_Upgrade {
+  constructor(currency, cost, cost_mul) {
+    super(currency, cost);
+
+    this.base_cost = this.cost.copy();
+    this.cost_mul = cost_mul instanceof Big_Num
+      ? cost_mul
+      : new Big_Num(cost_mul, 0);
+  }
+
+  effect() {
+    this.cost = this.cost.copy().mul(this.cost_mul);
+    playSound("purchase")
+  }
+
+  reset() {
+    this.cost = this.base_cost.copy();
+  }
+}
+
+class Earn_Upgrade extends Increase_Upgrade {
+  constructor(currency, cost, cost_mul, stat, stat_get) {
+    super(currency, cost, cost_mul);
+
+    this.stat = stat;
+    this.stat_get = stat_get instanceof Big_Num
+      ? stat_get
+      : new Big_Num(stat_get, 0);
+  }
+
+  effect() {
+    super.effect();
+    this.stat.count = this.stat.count.copy().add(this.stat_get);
+  }
+}
+
+class Multiply_Upgrade extends Increase_Upgrade {
+  constructor(currency, cost, cost_mul, stat, stat_mul) {
+    super(currency, cost, cost_mul);
+
+    this.stat = stat;
+    this.stat_mul = stat_mul instanceof Big_Num
+      ? stat_mul
+      : new Big_Num(stat_mul, 0);
+  }
+
+  effect() {
+    super.effect();
+    this.stat.count = this.stat.count.copy().mul(this.stat_mul);
+  }
+}
+
+// ========================================
+// 6. 게임 클래스
+// ========================================
+
+class Game {
+  constructor() {
+    this.common_rune = new Null_Rune(0, "common", 1000);
+    this.uncommom_rune = new Null_Rune(0, "uncommon", 400);
+    this.rare_rune = new Null_Rune(0, "rare", 200);
+    this.epic_rune = new Null_Rune(0, "epic", 50);
+    this.legendary_rune = new Null_Rune(0, "legendary", 15);
+
+    this.grade_rune_pack = new Null_Runes(
+      [
+        this.common_rune,
+        this.uncommom_rune,
+        this.rare_rune,
+        this.epic_rune,
+        this.legendary_rune
+      ],
+      new Big_Num(1, 2)
+    );
+
+    this.funds = new Base_Currency(0);
+
+    this.multi = new Prestige_Formula_Currency(
+      0, [this.funds], this.funds, this.common_rune,
+      new Big_Num(1, 1), new Big_Num(1.5, 0), new Big_Num(1, 0)
+    );
+
+    this.rebirth = new Prestige_Formula_Currency(
+      0, [this.funds, this.multi], this.multi, this.uncommom_rune,
+      new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
+    );
+
+    this.ultra = new Prestige_Formula_Currency(
+      0, [this.funds, this.multi, this.rebirth],
+      this.rebirth, this.rare_rune,
+      new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
+    );
+
+    this.prestige = new Prestige_Formula_Currency(
+      0, [this.funds, this.multi, this.rebirth, this.ultra],
+      this.ultra, this.epic_rune,
+      new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
+    );
+
+    this.mega = new Prestige_Formula_Currency(
+      0, [this.funds, this.multi, this.rebirth, this.ultra, this.prestige],
+      this.prestige, this.legendary_rune,
+      new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
+    );
+
+    this.score = new Base_Currency(0);
+  }
+
+  text_UI() {
+    document.getElementById("score_text").innerText =
+      this.score.count.format();
+
+    document.getElementById("fund_text").innerText =
+      this.funds.count.format();
+
+    document.getElementById("multi-text").innerText =
+      this.multi.count.format();
+
+    document.getElementById("multi-gain-text").innerText =
+      this.multi.Earn_display();
+
+    document.getElementById("rebirth-text").innerText =
+      this.rebirth.count.format();
+
+    document.getElementById("rebirth-gain-text").innerText =
+      this.rebirth.Earn_display();
+
+    document.getElementById("ultra-text").innerText =
+      this.ultra.count.format();
+
+    document.getElementById("ultra-gain-text").innerText =
+      this.ultra.Earn_display();
+
+    document.getElementById("prestige-text").innerText =
+      this.prestige.count.format();
+
+    document.getElementById("prestige-gain-text").innerText =
+      this.prestige.Earn_display();
+
+    document.getElementById("mega-text").innerText =
+      this.mega.count.format();
+
+    document.getElementById("mega-gain-text").innerText =
+      this.mega.Earn_display();
+  }
+}
+
+const game = new Game();
+
+
+const sounds = {
+    buy: new Audio("game_sfx_pack/gacha.wav"),
+    click: new Audio("game_sfx_pack/prestige.wav"),
+    prestige: new Audio("game_sfx_pack/purchase.wav")
+};
+
+// 기본 음량
+let master_volume = 0.5;
+
+// 효과음 재생
+function playSound(name) {
+    const sound = sounds[name];
+
+    if (!sound) return;
+
+    sound.volume = master_volume;
+    sound.currentTime = 0;
+    sound.play().catch(error => {
+        console.warn("사운드 재생 실패:", error);
+    });
+}
+
+// ========================================
+// 7. 업그레이드 버튼
+// ========================================
+
+function setupHoldButton(button, upgrade) {
+  let hold_interval = null;
+
+  function startUpgrade(event) {
+    if (event) event.preventDefault();
+
+    if (hold_interval !== null) return;
+
+    const success = upgrade.buy();
+
+    if (!success) return;
+
+    hold_interval = setInterval(() => {
+      if (!upgrade.buy()) {
+        stopUpgrade();
+      }
+    }, 50);
+  }
+
+  function stopUpgrade() {
+    clearInterval(hold_interval);
+    hold_interval = null;
+  }
+
+  button.addEventListener("pointerdown", startUpgrade);
+  button.addEventListener("pointerup", stopUpgrade);
+  button.addEventListener("pointerleave", stopUpgrade);
+  button.addEventListener("pointercancel", stopUpgrade);
+  button.addEventListener("contextmenu", event => event.preventDefault());
+}
+
+function createUpgradeButton(upgrade, name) {
+  const button = document.createElement("button");
+
+  button.className = "upgrade_btn";
+  button.innerText = name;
+
+  document.getElementById("upgrade_container").appendChild(button);
+
+  upgrade.button = button;
+  setupHoldButton(button, upgrade);
+
+  return button;
+}
+
+// ========================================
+// 8. 룬 뽑기
+// ========================================
+
+function drawRune() {
+  const cost = new Big_Num(1, 2);
+
+  if (game.score.count.lt(cost)) {
+    document.getElementById("rune-result").textContent =
+      "점수가 부족합니다!";
+    return;
+  }
+
+  game.score.count = game.score.count.copy().sub(cost);
+
+  const rune = game.grade_rune_pack.roll();
+
+  document.getElementById("rune-result").textContent =
+    `${rune.name} 획득!`;
+
+  updateRuneInventory();
+  game.text_UI();
+}
+
+function updateRuneInventory() {
+  const inventory = document.getElementById("rune-inventory");
+  inventory.replaceChildren();
+
+  game.grade_rune_pack.runes.forEach(rune => {
+    const p = document.createElement("p");
+    p.textContent = `${rune.name}: ${rune.count.format()}개`;
+    inventory.appendChild(p);
+  });
+}
+
+document.getElementById("rune-roll-button")
+  .addEventListener("click", drawRune);
+
+// ========================================
+// 9. 저장 및 불러오기
+// ========================================
+
+const SAVE_KEY = "nameless_prestige_save";
+
+function serializeCurrency(currency) {
+  return {
+    mantissa: currency.count.mantissa,
+    exponent: currency.count.exponent
+  };
+}
+
+function saveGame() {
+  const saveData = {
+    funds: serializeCurrency(game.funds),
+    multi: serializeCurrency(game.multi),
+    rebirth: serializeCurrency(game.rebirth),
+    ultra: serializeCurrency(game.ultra),
+    prestige: serializeCurrency(game.prestige),
+    mega: serializeCurrency(game.mega),
+    score: serializeCurrency(game.score),
+
+    runes: game.grade_rune_pack.runes.map(rune => ({
+      name: rune.name,
+      mantissa: rune.count.mantissa,
+      exponent: rune.count.exponent
+    })),
+
+    lastSave: Date.now()
+  };
+
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+  } catch (error) {
+    console.error("저장에 실패했습니다.", error);
+  }
+}
+
+function restoreCurrency(currency, data) {
+  if (
+    data &&
+    Number.isFinite(data.mantissa) &&
+    Number.isFinite(data.exponent)
+  ) {
+    currency.count = new Big_Num(data.mantissa, data.exponent);
+  }
+}
+
+function loadGame() {
+  const data = localStorage.getItem(SAVE_KEY);
+
+  if (!data) return 0;
+
+  try {
+    const saveData = JSON.parse(data);
+
+    restoreCurrency(game.funds, saveData.funds);
+    restoreCurrency(game.multi, saveData.multi);
+    restoreCurrency(game.rebirth, saveData.rebirth);
+    restoreCurrency(game.ultra, saveData.ultra);
+    restoreCurrency(game.prestige, saveData.prestige);
+    restoreCurrency(game.mega, saveData.mega);
+    restoreCurrency(game.score, saveData.score);
+
+    if (Array.isArray(saveData.runes)) {
+      for (const savedRune of saveData.runes) {
+        const rune = game.grade_rune_pack.runes.find(
+          r => r.name === savedRune.name
+        );
+
+        if (rune) {
+          restoreCurrency(rune, savedRune);
+        }
+      }
+    }
+
+    updateRuneInventory();
+
+    const lastSave = Number.isFinite(saveData.lastSave)
+      ? saveData.lastSave
+      : Date.now();
+
+    return Math.max(0, (Date.now() - lastSave) / 1000);
+  } catch (error) {
+    console.error("저장 데이터를 불러오지 못했습니다.", error);
+    return 0;
+  }
+}
+
+// ========================================
+// 10. 게임 초기화
+// ========================================
+
+let isResetting = false;
+
+function resetGame() {
+  const confirmReset = confirm(
+    "정말로 게임을 초기화하시겠습니까?\n모든 저장 데이터가 삭제됩니다."
+  );
+
+  if (!confirmReset) return;
+
+  isResetting = true;
+  localStorage.removeItem(SAVE_KEY);
+  location.reload();
+}
+
+document.getElementById("reset-button")
+  .addEventListener("click", resetGame);
+
+// ========================================
+// 11. 자금 및 점수 생산
+// ========================================
+
+function get_update(delta) {
+  let produce = game.multi.count.add(1)
+    .mul(game.rebirth.count.add(1))
+    .mul(game.ultra.count.add(1))
+    .mul(game.prestige.count.add(1))
+    .mul(game.mega.count.add(1))
+    .mul(new Big_Num(delta, 0));
+
+  const down = new Big_Num(3, -1);
+
+  if (produce.gt(0)) {
+    produce = produce.mul(
+      new Big_Num(9, -1).pow(
+        produce.log10().div(down)
+      )
+    );
+  }
+
+  game.funds.count = game.funds.count.add(produce);
+
+  let score_up = new Big_Num(0, 0);
+
+  if (produce.gt(0)) {
+    score_up = produce.pow(0.1)
+      .mul(new Big_Num(delta, 0))
+      .div(new Big_Num(1, 2));
+
+    if (score_up.gt(0)) {
+      score_up = score_up.pow(
+        new Big_Num(9.8, -1).pow(
+          score_up.log10()
+        )
+      );
+    }
+  }
+
+  game.score.count = game.score.count.add(score_up);
+}
+
+function scroll() {
+  for (const scrollBox of document.querySelectorAll(".tab-content")) {
+    // 중복 생성 방지
+    if (scrollBox.dataset.scrollInitialized === "true") {
+      continue;
+    }
+
+    scrollBox.dataset.scrollInitialized = "true";
+
+    // 스크롤바 요소 자동 생성
+    const wrapper = document.createElement("div");
+    wrapper.className = "custom-scrollbar";
+
+    const thumb = document.createElement("div");
+    thumb.className = "custom-scrollbar-thumb";
+
+    wrapper.appendChild(thumb);
+
+    // 스크롤 영역의 부모에 추가
+    scrollBox.parentElement.appendChild(wrapper);
+
+    let hideTimer;
+
+    function updateThumb() {
+      const visible = scrollBox.clientHeight;
+      const total = scrollBox.scrollHeight;
+
+      if (total <= visible || visible === 0) {
+        wrapper.style.display = "none";
+        return;
+      }
+
+      wrapper.style.display = "block";
+
+      const thumbHeight = Math.max(
+        24,
+        visible * visible / total
+      );
+
+      thumb.style.height =
+        Math.min(visible, thumbHeight) + "px";
+
+      const maxScroll = total - visible;
+      const maxThumbTop = visible - Math.min(visible, thumbHeight);
+
+      thumb.style.top =
+        (scrollBox.scrollTop / maxScroll) * maxThumbTop + "px";
+    }
+
+    scrollBox.addEventListener("scroll", () => {
+      updateThumb();
+
+      wrapper.classList.add("scrolling");
+
+      clearTimeout(hideTimer);
+
+      hideTimer = setTimeout(() => {
+        wrapper.classList.remove("scrolling");
+      }, 1000);
+    });
+
+    updateThumb();
+
+    new ResizeObserver(updateThumb).observe(scrollBox);
+  }
+}
+
+function dark_mode_ui_update() {
+  const checkbox = document.getElementById("Dark_Mode_Checkbox");
+
+  if (checkbox.checked) {
+    document.querySelectorAll(".common").forEach(sub_text => {
+      sub_text.classList.add("Dark-Mode")
+    });
+    document.querySelectorAll(".money").forEach(main_text => {
+      main_text.classList.add("Dark-Mode")
+    });
+    document.querySelectorAll(".tab-content").forEach(tab => {
+      tab.classList.add("Dark-Mode")
+    })
+    document.querySelectorAll("body").forEach(body_obj => {
+      body_obj.classList.add("Dark-Mode")
+    })
+    document.querySelectorAll(".tab-btn").forEach(tab_obj => {
+      tab_obj.classList.add("Dark-Mode")
+    })
+    document.querySelectorAll(".tab-main").forEach(tab_tab => {
+      tab_tab.classList.add("Dark-Mode")
+    })
+  }
+  else {
+    document.querySelectorAll(".Dark-Mode").forEach(obj => {
+      obj.classList.remove("Dark-Mode")
+    })
+  }
+}
+
+
+function sound_slider_ui_update() {
+    const slider = document.getElementById("Sound_Slider");
+    const slider_value = document.getElementById("sound-value");
+
+    // 현재 음량 표시
+    master_volume = Number(slider.value) / 100;
+
+    slider_value.textContent = `${slider.value}%`;
+
+    // 슬라이더 변경 감지
+    slider.addEventListener("input", () => {
+        master_volume = Number(slider.value) / 100;
+
+        slider_value.textContent = `${slider.value}%`;
+    });
+}
+
+
+function ui_update() {
+  game.text_UI();
+  dark_mode_ui_update();
+}
+
+function update(delta) {
+  get_update(delta);
+  ui_update();
+}
+
+// ========================================
+// 12. 오프라인 보상 및 게임 루프
+// ========================================
+
+const offlineSeconds = loadGame();
+
+if (offlineSeconds > 0) {
+  console.log("오프라인 보상 시간:", offlineSeconds, "초");
+
+  // 한 번의 거대한 계산 대신 최대 0.1초 단위로 처리
+  let remaining = offlineSeconds;
+
+  while (remaining > 0) {
+    const step = Math.min(remaining, 0.1);
+    get_update(step);
+    remaining -= step;
+  }
+
+  saveGame();
+}
+
+scroll();
+
+game.text_UI();
+updateRuneInventory();
+
+sound_slider_ui_update();
+
+
+let lastTime = performance.now();
+
+function gameLoop(now) {
+  let delta = (now - lastTime) / 1000;
+
+  delta = Math.max(0, Math.min(delta, 0.1));
+  lastTime = now;
+
+  update(delta);
+
+  requestAnimationFrame(gameLoop);
+}
+
+requestAnimationFrame(gameLoop);
+
+// 화면을 닫거나 백그라운드로 보낼 때 저장
+window.addEventListener("beforeunload", () => {
+  if (!isResetting) saveGame();
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && !isResetting) {
+    saveGame();
+  }
+});
+
+// 5초마다 자동 저장
+setInterval(() => {
+  if (!isResetting) saveGame();
+}, 5000);
