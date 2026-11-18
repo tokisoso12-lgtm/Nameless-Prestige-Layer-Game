@@ -636,9 +636,9 @@ const game = new Game();
 
 
 const sounds = {
-    buy: new Audio("game_sfx_pack/gacha.wav"),
-    click: new Audio("game_sfx_pack/prestige.wav"),
-    prestige: new Audio("game_sfx_pack/purchase.wav")
+    buy: new Audio("gacha.wav"),
+    click: new Audio("prestige.wav"),
+    prestige: new Audio("purchase.wav")
 };
 
 // 기본 음량
