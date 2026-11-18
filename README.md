@@ -1,2 +1,2 @@
 # Nameless-Prestige-Layer-Game
-this is game
+This is my game. you are like my game
