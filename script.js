@@ -166,7 +166,7 @@ class Big_Num {
       return `${value.mantissa.toFixed(2)}e${value.exponent.toLocaleString()}`;
     }
 
-    return '"The Large Number"';
+    return '"Never Ending"';
   }
 
   compare(other) {
@@ -449,11 +449,12 @@ class Null_Runes {
       random -= rune.chance;
 
       if (random < 0) {
-        playSound("gacha");
         rune.gain();
         return rune;
       }
     }
+
+    playSound("gacha");
 
     const rune = this.runes[this.runes.length - 1];
     rune.gain();
@@ -645,19 +646,15 @@ let master_volume = 0.5;
 
 // 효과음 재생
 function playSound(name) {
-  const sound = sounds[name];
+    const sound = sounds[name];
 
-  if (!sound) {
-    console.warn("존재하지 않는 사운드:", name);
-    return;
-  }
+    if (!sound) return;
 
-  sound.volume = master_volume;
-  sound.currentTime = 0;
-
-  sound.play().catch(error => {
-    console.error("사운드 재생 실패:", error);
-  });
+    sound.volume = master_volume;
+    sound.currentTime = 0;
+    sound.play().catch(error => {
+        console.warn("사운드 재생 실패:", error);
+    });
 }
 
 // ========================================
@@ -739,7 +736,7 @@ function updateRuneInventory() {
 
   game.grade_rune_pack.runes.forEach(rune => {
     const p = document.createElement("p");
-    p.textContent = `${rune.name}: ${rune.count.format()}개`;
+    p.textContent = `${rune.name}: ${rune.count.format()}`;
     inventory.appendChild(p);
   });
 }
@@ -845,7 +842,7 @@ let isResetting = false;
 
 function resetGame() {
   const confirmReset = confirm(
-    "정말로 게임을 초기화하시겠습니까?\n모든 저장 데이터가 삭제됩니다."
+    "all reset?\nall save is lost"
   );
 
   if (!confirmReset) return;
@@ -990,6 +987,12 @@ function dark_mode_ui_update() {
     document.querySelectorAll(".tab-main").forEach(tab_tab => {
       tab_tab.classList.add("Dark-Mode")
     })
+    document.querySelectorAll(".dropdown-button").forEach(dropdown_on => {
+      dropdown_on.classList.add("Dark-Mode")
+    })
+    document.querySelectorAll(".dropdown").forEach(dropdown => {
+      dropdown.classList.add("Dark-Mode")
+    })
   }
   else {
     document.querySelectorAll(".Dark-Mode").forEach(obj => {
@@ -1008,17 +1011,64 @@ function sound_slider_ui_update() {
 
   slider_value.textContent = `${slider.value}%`;
 
-    // 슬라이더 변경 감지
+  // 슬라이더 변경 감지
   slider.addEventListener("input", () => {
     master_volume = Number(slider.value) / 100;
+
     slider_value.textContent = `${slider.value}%`;
   });
 }
 
+function dropdown_btn_ui(btn_id, dropdown_id) {
+  const to_button = document.getElementById(btn_id);
+  const dropdown = document.getElementById(dropdown_id);
+      
+  to_button.addEventListener("click", () => {
+    dropdown.classList.toggle("locked");
+  });
+      
+  // 메뉴 바깥을 누르면 닫기
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".dropdown-container")) {
+      dropdown.classList.add("locked");
+    }
+  });
+      
+  // 메뉴 항목을 누르면 선택한 항목 확인
+  dropdown.querySelectorAll("button").forEach((button) => {
+    button.addEventListener("click", () => {
+      to_button.textContent = button.textContent;
+      dropdown.classList.add("locked");
+    });
+  });
+}
+
+
+function get_language() {
+  const language = document.getElementById("language-button");
+
+  if (language.textContent.trim() == "한국어") {
+    document.querySelectorAll(".language.korean").forEach(korean => {
+      korean.classList.remove("locked")
+    });
+    document.querySelectorAll(".language.english").forEach(english => {
+      english.classList.add("locked")
+    });
+  }
+  else {
+    document.querySelectorAll(".language.korean").forEach(korean => {
+      korean.classList.add("locked")
+    });
+    document.querySelectorAll(".language.english").forEach(english => {
+      english.classList.remove("locked")
+    });
+  }
+}
 
 function ui_update() {
   game.text_UI();
   dark_mode_ui_update();
+  get_language();
 }
 
 function update(delta) {
@@ -1053,6 +1103,8 @@ game.text_UI();
 updateRuneInventory();
 
 sound_slider_ui_update();
+
+dropdown_btn_ui("language-button", "language-dropdown");
 
 
 let lastTime = performance.now();
