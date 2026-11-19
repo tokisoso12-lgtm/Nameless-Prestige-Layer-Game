@@ -885,17 +885,9 @@ function get_update(delta) {
   let score_up = new Big_Num(0, 0);
 
   if (produce.gt(0)) {
-    score_up = produce.pow(0.1)
+    score_up = produce.log10()
       .mul(new Big_Num(delta, 0))
       .div(new Big_Num(1, 2));
-
-    if (score_up.gt(0)) {
-      score_up = score_up.pow(
-        new Big_Num(9.8, -1).pow(
-          score_up.log10()
-        )
-      );
-    }
   }
 
   game.score.count = game.score.count.add(score_up);
