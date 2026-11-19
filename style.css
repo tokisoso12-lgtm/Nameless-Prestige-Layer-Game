@@ -226,6 +226,12 @@ body.Dark-Mode {
   margin-top: 50px;
 }
 
+.sub-title {
+  font-size: 25px;
+  font-weight: 400;
+  margin-top: 50px;
+}
+
 .reset_btn {
   display: flex;
   border-radius: 20px;
@@ -249,4 +255,68 @@ p {
 
 .setting_obj {
   margin-bottom: 20px;
+}
+
+.dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  margin-left: 8px;
+      
+  width: 110px;
+  max-height: 35vh;
+  overflow-y: auto;
+      
+  background: #d0d0d0;
+  border-radius: 4px;
+  padding: 8px 0;
+  z-index: 1000;
+}
+
+.dropdown.Dark-Mode {
+  background: #303030
+}
+      
+.dropdown button {
+  display: block;
+  width: 100%;
+  padding: 8px 4px;
+      
+  border: none;
+  background: transparent;
+  color: #111;
+      
+  font-size: 12px;
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+}
+
+.dropdown.Dark-Mode button {
+  color: #ddd;
+}
+      
+.dropdown button:hover {
+  background: #484848;
+}
+
+.dropdown-button {
+  padding: 9px 15px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background: #eee;
+  color: #222;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.dropdown-button.Dark-Mode {
+  border: 1px solid #555;
+  background: #222;
+  color: #fff;
 }
