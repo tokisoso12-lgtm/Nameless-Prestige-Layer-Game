@@ -156,7 +156,7 @@ class Big_Num {
       if (index < unit.length) {
         return `${number.toFixed(
           Math.max(0, 2 - value.exponent % 3)
-        )} ${unit[index]}`;
+        )}${unit[index]}`;
       }
     }
 
@@ -166,7 +166,7 @@ class Big_Num {
       return `${value.mantissa.toFixed(2)}e${value.exponent.toLocaleString()}`;
     }
 
-    return '"Never Ending"';
+    return '"Big Num"';
   }
 
   compare(other) {
@@ -347,10 +347,23 @@ class Prestige_Null_Currency extends Base_Currency {
 }
 
 class Prestige_Return_Currency extends Prestige_Null_Currency {
-  constructor(count, reset_list, under_currency, multi) {
+  constructor(count, reset_list, under_currency, multi, under_if) {
     super(count, reset_list);
     this.under_currency = under_currency;
     this.multi = multi;
+    this.under_if = under_if;
+  }
+
+  reset_to_get() {
+    if (this.under_currency.count.gte(this.under_if)) {
+      this.to_income();
+
+      for (const value of this.reset_list) {
+        value.reset();
+      }
+
+      playSound("prestige")
+    }
   }
 
   to_income() {
@@ -368,9 +381,9 @@ class Prestige_Return_Currency extends Prestige_Null_Currency {
 class Prestige_Formula_Currency extends Prestige_Return_Currency {
   constructor(
     count, reset_list, under_currency, multi,
-    gain_base, gain_divisor, gain_offset
+    under_if, gain_base, gain_divisor, gain_offset
   ) {
-    super(count, reset_list, under_currency, multi);
+    super(count, reset_list, under_currency, multi, under_if);
 
     this.gain_base = gain_base;
     this.gain_divisor = gain_divisor;
@@ -384,21 +397,42 @@ class Prestige_Formula_Currency extends Prestige_Return_Currency {
           .div(this.gain_divisor.copy())
           .sub(this.gain_offset.copy())
       )
-      .mul(this.multi.count.copy().add(1));
+      .mul(this.multi.count.copy().div(33).add(1));
   }
 
   Earn_display() {
+    const language = document.getElementById("language-button");
     if (this.under_currency.count.neq(0)) {
       try {
-        return this.income_calculate(
-          this.under_currency.count
-        ).format();
+        if (this.under_currency.count.gte(this.under_if)) {
+          return this.income_calculate(
+            this.under_currency.count
+          ).format();
+        }
+        else {
+          if (language.textContent.trim() == "한국어") {
+            return "잠겨있습니다"
+          }
+          else {
+            return "locked"
+          }
+        }
       } catch (error) {
-        return "0.00";
+        if (language.textContent.trim() == "한국어") {
+          return "잠겨있습니다"
+        }
+        else {
+          return "locked"
+        }
       }
     }
 
-    return "0.00";
+    if (language.textContent.trim() == "한국어") {
+      return "잠겨있습니다"
+    }
+    else {
+      return "locked"
+    }
   }
 }
 
@@ -562,34 +596,38 @@ class Game {
     this.funds = new Base_Currency(0);
 
     this.multi = new Prestige_Formula_Currency(
-      0, [this.funds], this.funds, this.common_rune,
+      0, [this.funds], this.funds, this.common_rune, new Big_Num(1, 1),
       new Big_Num(1, 1), new Big_Num(1.5, 0), new Big_Num(1, 0)
     );
 
     this.rebirth = new Prestige_Formula_Currency(
-      0, [this.funds, this.multi], this.multi, this.uncommom_rune,
+      0, [this.funds, this.multi], this.multi, this.uncommom_rune, new Big_Num(2, 2),
       new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
     );
 
     this.ultra = new Prestige_Formula_Currency(
       0, [this.funds, this.multi, this.rebirth],
-      this.rebirth, this.rare_rune,
+      this.rebirth, this.rare_rune, new Big_Num(5, 2),
       new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
     );
 
     this.prestige = new Prestige_Formula_Currency(
       0, [this.funds, this.multi, this.rebirth, this.ultra],
-      this.ultra, this.epic_rune,
+      this.ultra, this.epic_rune, new Big_Num(2.25, 3),
       new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
     );
 
     this.mega = new Prestige_Formula_Currency(
       0, [this.funds, this.multi, this.rebirth, this.ultra, this.prestige],
-      this.prestige, this.legendary_rune,
+      this.prestige, this.legendary_rune, new Big_Num(7, 3),
       new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
     );
 
     this.score = new Base_Currency(0);
+
+    this.upgrades = {
+      
+    }
   }
 
   text_UI() {
@@ -635,9 +673,9 @@ const game = new Game();
 
 
 const sounds = {
-  gacha: new Audio("gacha.wav"),
-  prestige: new Audio("prestige.wav"),
-  purchase: new Audio("purchase.wav")
+    gacha: new Audio("gacha.wav"),
+    prestige: new Audio("prestige.wav"),
+    purchase: new Audio("purchase.wav")
 };
 
 // 기본 음량
@@ -656,7 +694,7 @@ function playSound(name) {
   sound.currentTime = 0;
 
   sound.play().catch(error => {
-      console.error("사운드 재생 실패:", error);
+    console.error("사운드 재생 실패:", error);
   });
 }
 
@@ -714,11 +752,18 @@ function createUpgradeButton(upgrade, name) {
 // ========================================
 
 function drawRune() {
+  const language = document.getElementById("language-button");
   const cost = new Big_Num(1, 2);
 
   if (game.score.count.lt(cost)) {
-    document.getElementById("rune-result").textContent =
-      "점수가 부족합니다!";
+    if (language.textContent.trim() == "한국어") {
+      document.getElementById("rune-result").textContent =
+        "점수가 부족합니다";
+    }
+    else {
+      document.getElementById("rune-result").textContent =
+        "Not enough score";
+    }
     return;
   }
 
@@ -753,6 +798,18 @@ document.getElementById("rune-roll-button")
 
 const SAVE_KEY = "nameless_prestige_save";
 
+// ========================================
+// 9-1. 저장 데이터 설정
+// ========================================
+
+const SAVE_VERSION = 3;
+
+const BACKUP_KEY = SAVE_KEY + "_backup";
+
+// ========================================
+// 9-2. 재화 직렬화
+// ========================================
+
 function serializeCurrency(currency) {
   return {
     mantissa: currency.count.mantissa,
@@ -760,8 +817,85 @@ function serializeCurrency(currency) {
   };
 }
 
-function saveGame() {
-  const saveData = {
+// ========================================
+// 9-3. 재화 데이터 검사
+// ========================================
+
+function isValidCurrency(data) {
+  return (
+    data &&
+    typeof data === "object" &&
+    Number.isFinite(data.mantissa) &&
+    Number.isFinite(data.exponent)
+  );
+}
+
+// ========================================
+// 9-4. 저장 데이터 검사
+// ========================================
+
+function isValidSaveData(data) {
+  if (
+    !data ||
+    typeof data !== "object" ||
+    Array.isArray(data)
+  ) {
+    return false;
+  }
+
+  const currencies = [
+    "funds",
+    "multi",
+    "rebirth",
+    "ultra",
+    "prestige",
+    "mega",
+    "score"
+  ];
+
+  for (const key of currencies) {
+    if (!isValidCurrency(data[key])) {
+      return false;
+    }
+  }
+
+  if (
+    data.runes !== undefined &&
+    !Array.isArray(data.runes)
+  ) {
+    return false;
+  }
+
+  if (
+    data.runes &&
+    !data.runes.every(rune =>
+      rune &&
+      typeof rune.name === "string" &&
+      isValidCurrency(rune)
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    typeof data.language !== "string" ||
+    typeof data.dark_mode !== "boolean" ||
+    !Number.isFinite(data.sound)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+// ========================================
+// 9-5. 기본 저장 데이터 생성
+// ========================================
+
+function createSaveData() {
+  return {
+    version: SAVE_VERSION,
+
     funds: serializeCurrency(game.funds),
     multi: serializeCurrency(game.multi),
     rebirth: serializeCurrency(game.rebirth),
@@ -769,7 +903,12 @@ function saveGame() {
     prestige: serializeCurrency(game.prestige),
     mega: serializeCurrency(game.mega),
     score: serializeCurrency(game.score),
+    language: document.getElementById("language-button").textContent.trim(),
 
+    dark_mode: document.getElementById("Dark_Mode_Checkbox").checked,
+
+    sound: Number(document.getElementById("Sound_Slider").value),
+    
     runes: game.grade_rune_pack.runes.map(rune => ({
       name: rune.name,
       mantissa: rune.count.mantissa,
@@ -778,63 +917,242 @@ function saveGame() {
 
     lastSave: Date.now()
   };
+}
 
+// ========================================
+// 9-6. 버전 마이그레이션
+// ========================================
+
+function migrateSaveData(data) {
+  let version = Number.isInteger(data.version)
+    ? data.version
+    : 1;
+
+  if (version > SAVE_VERSION || version < 1) {
+    throw new Error("지원하지 않는 세이브 버전입니다.");
+  }
+
+  // v1 -> v2
+  if (version === 1) {
+    // v1에 존재하지 않던 데이터의 기본값 처리
+    if (!data.score) {
+      data.score = {
+        mantissa: 0,
+        exponent: 0
+      };
+    }
+
+    if (!Array.isArray(data.runes)) {
+      data.runes = [];
+    }
+
+    data.version = 2;
+    version = 2;
+
+    console.log("세이브 v1 -> v2 업데이트 완료");
+  }
+
+  // v2 -> v3
+  if (version === 2) {
+    data.language ??= "한국어";
+    data.dark_mode ??= false;
+    data.sound ??= 50;
+
+    data.version = 3;
+    version = 3;
+  }
+
+  return data;
+}
+
+// ========================================
+// 9-7. 게임 저장
+// ========================================
+
+function saveGame() {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+    const saveData = createSaveData();
+
+    if (!isValidSaveData(saveData)) {
+      throw new Error("현재 게임 데이터가 올바르지 않습니다.");
+    }
+
+    const newSave = JSON.stringify(saveData);
+
+    // 기존 정상 세이브 백업
+    const oldSave = localStorage.getItem(SAVE_KEY);
+
+    if (oldSave) {
+      try {
+        const parsedOldSave = JSON.parse(oldSave);
+
+        if (isValidSaveData(parsedOldSave)) {
+          localStorage.setItem(BACKUP_KEY, oldSave);
+        }
+      } catch (error) {
+        console.warn("기존 세이브가 손상되어 백업하지 않았습니다.");
+      }
+    }
+
+    localStorage.setItem(SAVE_KEY, newSave);
+
+    console.log("게임 저장 완료!");
+
   } catch (error) {
     console.error("저장에 실패했습니다.", error);
   }
 }
 
+// ========================================
+// 9-8. 재화 복원
+// ========================================
+
 function restoreCurrency(currency, data) {
-  if (
-    data &&
-    Number.isFinite(data.mantissa) &&
-    Number.isFinite(data.exponent)
-  ) {
-    currency.count = new Big_Num(data.mantissa, data.exponent);
+  if (isValidCurrency(data)) {
+    currency.count = new Big_Num(
+      data.mantissa,
+      data.exponent
+    );
+
+    return true;
   }
+
+  return false;
 }
 
-function loadGame() {
-  const data = localStorage.getItem(SAVE_KEY);
+// ========================================
+// 9-9. 게임 데이터 적용
+// ========================================
 
-  if (!data) return 0;
+function applySaveData(saveData) {
+  const currencies = [
+    ["funds", game.funds],
+    ["multi", game.multi],
+    ["rebirth", game.rebirth],
+    ["ultra", game.ultra],
+    ["prestige", game.prestige],
+    ["mega", game.mega],
+    ["score", game.score]
+  ];
 
-  try {
-    const saveData = JSON.parse(data);
+  for (const [key, currency] of currencies) {
+    restoreCurrency(currency, saveData[key]);
+  }
 
-    restoreCurrency(game.funds, saveData.funds);
-    restoreCurrency(game.multi, saveData.multi);
-    restoreCurrency(game.rebirth, saveData.rebirth);
-    restoreCurrency(game.ultra, saveData.ultra);
-    restoreCurrency(game.prestige, saveData.prestige);
-    restoreCurrency(game.mega, saveData.mega);
-    restoreCurrency(game.score, saveData.score);
+  // 언어 설정
+  document.getElementById("language-button").textContent =
+    saveData.language;
 
-    if (Array.isArray(saveData.runes)) {
-      for (const savedRune of saveData.runes) {
-        const rune = game.grade_rune_pack.runes.find(
-          r => r.name === savedRune.name
-        );
+  // 다크 모드
+  document.getElementById("Dark_Mode_Checkbox").checked =
+    saveData.dark_mode;
 
-        if (rune) {
-          restoreCurrency(rune, savedRune);
-        }
+  // 사운드
+  document.getElementById("Sound_Slider").value =
+    saveData.sound;
+
+  if (Array.isArray(saveData.runes)) {
+    for (const savedRune of saveData.runes) {
+      const rune = game.grade_rune_pack.runes.find(
+        r => r.name === savedRune.name
+      );
+
+      if (rune) {
+        restoreCurrency(rune, savedRune);
       }
     }
+  }
 
-    updateRuneInventory();
+  updateRuneInventory();
+}
 
-    const lastSave = Number.isFinite(saveData.lastSave)
-      ? saveData.lastSave
-      : Date.now();
+// ========================================
+// 9-10. 세이브 데이터 읽기
+// ========================================
 
-    return Math.max(0, (Date.now() - lastSave) / 1000);
-  } catch (error) {
-    console.error("저장 데이터를 불러오지 못했습니다.", error);
+function readSaveData(rawData) {
+  const data = JSON.parse(rawData);
+
+  const migratedData = migrateSaveData(data);
+
+  if (!isValidSaveData(migratedData)) {
+    throw new Error("저장 데이터가 올바르지 않습니다.");
+  }
+
+  return migratedData;
+}
+
+// ========================================
+// 9-11. 게임 불러오기
+// ========================================
+
+function loadGame() {
+  const mainSave = localStorage.getItem(SAVE_KEY);
+  const backupSave = localStorage.getItem(BACKUP_KEY);
+
+  if (!mainSave && !backupSave) {
+    console.log("저장 데이터가 없습니다.");
     return 0;
   }
+
+  const saveSources = [
+    { key: SAVE_KEY, data: mainSave, name: "메인 세이브" },
+    { key: BACKUP_KEY, data: backupSave, name: "백업 세이브" }
+  ];
+
+  for (const source of saveSources) {
+    if (!source.data) continue;
+
+    try {
+      const saveData = readSaveData(source.data);
+
+      applySaveData(saveData);
+
+      // 마이그레이션된 데이터를 새 버전으로 저장
+      const updatedSave = JSON.stringify({
+        ...saveData,
+        version: SAVE_VERSION
+      });
+
+      // 메인 세이브를 불러온 경우 버전 업데이트
+      if (source.key === SAVE_KEY) {
+        if (updatedSave !== source.data) {
+          localStorage.setItem(BACKUP_KEY, source.data);
+          localStorage.setItem(SAVE_KEY, updatedSave);
+
+          console.log("세이브 버전 업데이트 완료!");
+        }
+      }
+
+      // 백업 세이브에서 복구한 경우
+      else {
+        localStorage.setItem(SAVE_KEY, updatedSave);
+
+        console.warn("백업 세이브로 복구했습니다!");
+      }
+
+      const lastSave = Number.isFinite(saveData.lastSave)
+        ? saveData.lastSave
+        : Date.now();
+
+      return Math.max(
+        0,
+        (Date.now() - lastSave) / 1000
+      );
+
+    } catch (error) {
+      console.error(
+        source.name + " 불러오기 실패:",
+        error
+      );
+    }
+  }
+
+  console.error(
+    "메인 세이브와 백업 세이브 모두 복구할 수 없습니다."
+  );
+
+  return 0;
 }
 
 // ========================================
@@ -852,6 +1170,7 @@ function resetGame() {
 
   isResetting = true;
   localStorage.removeItem(SAVE_KEY);
+  localStorage.removeItem(BACKUP_KEY);
   location.reload();
 }
 
@@ -885,7 +1204,8 @@ function get_update(delta) {
   let score_up = new Big_Num(0, 0);
 
   if (produce.gt(0)) {
-    score_up = produce.log10()
+    score_up = produce.add(1)
+      .log10()
       .mul(new Big_Num(delta, 0))
       .div(new Big_Num(1, 2));
   }
