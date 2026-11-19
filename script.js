@@ -449,12 +449,11 @@ class Null_Runes {
       random -= rune.chance;
 
       if (random < 0) {
+        playSound("gacha");
         rune.gain();
         return rune;
       }
     }
-
-    playSound("gacha");
 
     const rune = this.runes[this.runes.length - 1];
     rune.gain();
@@ -636,9 +635,9 @@ const game = new Game();
 
 
 const sounds = {
-    gacha: new Audio("gacha.wav"),
-    prestige: new Audio("prestige.wav"),
-    purchase: new Audio("purchase.wav")
+  gacha: new Audio("gacha.wav"),
+  prestige: new Audio("prestige.wav"),
+  purchase: new Audio("purchase.wav")
 };
 
 // 기본 음량
@@ -646,15 +645,19 @@ let master_volume = 0.5;
 
 // 효과음 재생
 function playSound(name) {
-    const sound = sounds[name];
+  const sound = sounds[name];
 
-    if (!sound) return;
+  if (!sound) {
+    console.warn("존재하지 않는 사운드:", name);
+    return;
+  }
 
-    sound.volume = master_volume;
-    sound.currentTime = 0;
-    sound.play().catch(error => {
-        console.warn("사운드 재생 실패:", error);
-    });
+  sound.volume = master_volume;
+  sound.currentTime = 0;
+
+  sound.play().catch(error => {
+      console.error("사운드 재생 실패:", error);
+  });
 }
 
 // ========================================
