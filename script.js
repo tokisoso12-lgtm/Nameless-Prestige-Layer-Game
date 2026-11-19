@@ -623,6 +623,18 @@ class Game {
       new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
     );
 
+    this.ascension = new Prestige_Formula_Currency(
+      0, [this.funds, this.multi, this.rebirth, this.ultra, this.prestige, this.mega],
+      this.mega, this.legendary_rune, new Big_Num(3.5, 4),
+      new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
+    );
+
+    this.super = new Prestige_Formula_Currency(
+      0, [this.funds, this.multi, this.rebirth, this.ultra, this.prestige, this.mega, this.ascension],
+      this.ascension, this.legendary_rune, new Big_Num(9.9999, 4),
+      new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
+    );
+
     this.score = new Base_Currency(0);
 
     this.upgrades = {
@@ -666,6 +678,18 @@ class Game {
 
     document.getElementById("mega-gain-text").innerText =
       this.mega.Earn_display();
+
+    document.getElementById("ascension-text").innerText =
+      this.ascension.count.format();
+
+    document.getElementById("ascension-gain-text").innerText =
+      this.ascension.Earn_display();
+
+    document.getElementById("super-text").innerText =
+      this.super.count.format();
+
+    document.getElementById("super-gain-text").innerText =
+      this.super.Earn_display();
   }
 }
 
@@ -802,7 +826,7 @@ const SAVE_KEY = "nameless_prestige_save";
 // 9-1. 저장 데이터 설정
 // ========================================
 
-const SAVE_VERSION = 3;
+const SAVE_VERSION = 4;
 
 const BACKUP_KEY = SAVE_KEY + "_backup";
 
@@ -850,7 +874,9 @@ function isValidSaveData(data) {
     "ultra",
     "prestige",
     "mega",
-    "score"
+    "score",
+    "ascension",
+    "super"
   ];
 
   for (const key of currencies) {
@@ -903,6 +929,8 @@ function createSaveData() {
     prestige: serializeCurrency(game.prestige),
     mega: serializeCurrency(game.mega),
     score: serializeCurrency(game.score),
+    ascension: serializeCurrency(game.ascension),
+    super: serializeCurrency(game.super),
     language: document.getElementById("language-button").textContent.trim(),
 
     dark_mode: document.getElementById("Dark_Mode_Checkbox").checked,
@@ -960,6 +988,20 @@ function migrateSaveData(data) {
 
     data.version = 3;
     version = 3;
+  }
+
+  if (version === 3) {
+    data.ascension = {
+      mantissa: 0,
+      exponent: 0
+    };
+    data.super = {
+      mantissa: 0,
+      exponent: 0
+    };
+
+    data.version = 4;
+    version = 4;
   }
 
   return data;
@@ -1032,7 +1074,9 @@ function applySaveData(saveData) {
     ["ultra", game.ultra],
     ["prestige", game.prestige],
     ["mega", game.mega],
-    ["score", game.score]
+    ["score", game.score],
+    ["ascension", game.ascension],
+    ["super", game.super]
   ];
 
   for (const [key, currency] of currencies) {

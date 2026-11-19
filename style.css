@@ -151,6 +151,14 @@ body.Dark-Mode {
   color: #dddd66;
 }
 
+.money.ascension {
+  color: #00dd00;
+}
+
+.money.super {
+  color: #ff66aa;
+}
+
 .upgrade_btn {
   background-color: #c8c8c8;
   font-weight: 500;
@@ -218,6 +226,16 @@ body.Dark-Mode {
 .prestige_btn.mega {
   border-color: #ffffaa;
   background-color: #dddd00;
+}
+
+.prestige_btn.ascension {
+  border-color: #00ff00;
+  background-color: #00aa00;
+}
+
+.prestige_btn.super {
+  border-color: #ff66aa;
+  background-color: #cc6699;
 }
 
 .coming_soon {
