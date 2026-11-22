@@ -673,7 +673,7 @@ class Game {
     );
 
     this.super = new Prestige_Formula_Currency(
-      1000, [this.funds, this.multi, this.rebirth, this.ultra, this.prestige, this.mega, this.ascension],
+      0, [this.funds, this.multi, this.rebirth, this.ultra, this.prestige, this.mega, this.ascension],
       this.ascension, this.mythic_rune, new Big_Num(9.9999, 4),
       new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
     );
@@ -701,7 +701,7 @@ class Game {
   }
 
   text_UI() {
-    document.querySelectorAll(".score").forEach(score => {
+    document.querySelectorAll(".money.score").forEach(score => {
       score.innerText = this.score.count.format();
     });
 
