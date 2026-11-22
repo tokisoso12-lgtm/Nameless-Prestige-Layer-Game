@@ -688,7 +688,7 @@ class Game {
       new Big_Num(1, 3),
       new Big_Num(2, 0),
       this.score,
-      new Big_Num(3, -1)
+      new Big_Num(3, 0)
     );
 
     this.upgrades.Quest_speed = new Cost_Multiply_Upgrade(
