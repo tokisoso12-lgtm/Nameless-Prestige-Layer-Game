@@ -127,10 +127,6 @@ body.Dark-Mode {
   color: #ffffff
 }
 
-.money.score {
-  color: #999999;
-}
-
 .money.multi {
   color: #ee4444;
 }
@@ -167,6 +163,7 @@ body.Dark-Mode {
   height: 45px;
   border-radius: 12px;
   border: 3px solid #c86868;
+  flex-shrink: 0;
 }
 
 .upgrade_btn.can-buy {
@@ -176,6 +173,11 @@ body.Dark-Mode {
 
 .box {
   display: flex;
+  overflow-x: auto;
+  max-width: 400px;
+  padding: 50px 50px;
+  border: 2px solid #000000;
+  border-radius: 10px;
   gap: 20px;
 }
 
@@ -247,7 +249,6 @@ body.Dark-Mode {
 .sub-title {
   font-size: 25px;
   font-weight: 400;
-  margin-top: 50px;
 }
 
 .reset_btn {

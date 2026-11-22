@@ -38,6 +38,18 @@ class Big_Num {
   }
 
   normalize() {
+    if (
+      !Number.isFinite(this.mantissa) ||
+      !Number.isFinite(this.exponent)
+    ) {
+      throw new Error("Big_Num에 잘못된 값이 들어왔습니다.");
+    }
+
+    if (this.mantissa === 0) {
+      this.exponent = 0;
+      return this;
+    }
+    
     if (this.mantissa === 0) {
       this.exponent = 0;
       return this;
@@ -227,6 +239,10 @@ class Big_Num {
   }
 
   root() {
+    if (this.mantissa < 0) {
+      throw new Error("음수의 제곱근은 지원하지 않습니다.");
+    }
+
     return new Big_Num(
       this.mantissa ** 0.5,
       this.exponent / 2
@@ -249,11 +265,13 @@ class Big_Num {
   }
 
   toNumber() {
-    if (this.exponent > 308 || this.exponent < -324) {
-      throw new Error("Big_Num이 Number 범위를 벗어났습니다!");
+    const result = this.mantissa * 10 ** this.exponent;
+
+    if (!Number.isFinite(result)) {
+      throw new Error("Number 범위를 벗어났습니다!");
     }
 
-    return this.mantissa * 10 ** this.exponent;
+    return result;
   }
 
   fraction() {
@@ -570,6 +588,27 @@ class Multiply_Upgrade extends Increase_Upgrade {
   }
 }
 
+
+class Cost_Multiply_Upgrade extends Increase_Upgrade {
+  constructor(currency, cost, cost_mul, targetUpgrade, stat_mul) {
+    super(currency, cost, cost_mul);
+
+    this.targetUpgrade = targetUpgrade;
+    this.stat_mul = stat_mul instanceof Big_Num
+      ? stat_mul
+      : new Big_Num(stat_mul, 0);
+  }
+
+  effect() {
+    super.effect();
+
+    this.targetUpgrade.cost = this.targetUpgrade.cost
+      .copy()
+      .mul(this.stat_mul);
+  }
+}
+
+
 // ========================================
 // 6. 게임 클래스
 // ========================================
@@ -579,18 +618,22 @@ class Game {
     this.common_rune = new Null_Rune(0, "common", 1000);
     this.uncommom_rune = new Null_Rune(0, "uncommon", 400);
     this.rare_rune = new Null_Rune(0, "rare", 200);
-    this.epic_rune = new Null_Rune(0, "epic", 50);
-    this.legendary_rune = new Null_Rune(0, "legendary", 15);
+    this.unique_rune = new Null_Rune(0, "unique", 50);
+    this.epic_rune = new Null_Rune(0, "epic", 15);
+    this.legendary_rune = new Null_Rune(0, "legendary", 5);
+    this.mythic_rune = new Null_Rune(0, "mythic", 5);
 
     this.grade_rune_pack = new Null_Runes(
       [
         this.common_rune,
         this.uncommom_rune,
         this.rare_rune,
+        this.unique_rune,
         this.epic_rune,
-        this.legendary_rune
+        this.legendary_rune,
+        this.mythic_rune
       ],
-      new Big_Num(1, 2)
+      new Big_Num(2.5, 1)
     );
 
     this.funds = new Base_Currency(0);
@@ -613,13 +656,13 @@ class Game {
 
     this.prestige = new Prestige_Formula_Currency(
       0, [this.funds, this.multi, this.rebirth, this.ultra],
-      this.ultra, this.epic_rune, new Big_Num(2.25, 3),
+      this.ultra, this.unique_rune, new Big_Num(2.25, 3),
       new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
     );
 
     this.mega = new Prestige_Formula_Currency(
       0, [this.funds, this.multi, this.rebirth, this.ultra, this.prestige],
-      this.prestige, this.legendary_rune, new Big_Num(7, 3),
+      this.prestige, this.epic_rune, new Big_Num(7, 3),
       new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
     );
 
@@ -630,21 +673,37 @@ class Game {
     );
 
     this.super = new Prestige_Formula_Currency(
-      0, [this.funds, this.multi, this.rebirth, this.ultra, this.prestige, this.mega, this.ascension],
-      this.ascension, this.legendary_rune, new Big_Num(9.9999, 4),
+      1000, [this.funds, this.multi, this.rebirth, this.ultra, this.prestige, this.mega, this.ascension],
+      this.ascension, this.mythic_rune, new Big_Num(9.9999, 4),
       new Big_Num(1, 1), new Big_Num(2.25, 0), new Big_Num(1.3, 0)
     );
 
-    this.score = new Base_Currency(0);
+    this.score = new Base_Currency(new Big_Num(0, 0));
 
-    this.upgrades = {
-      
-    }
+    
+    this.upgrades = {};
+
+    this.upgrades.Quest_labor = new Earn_Upgrade(
+      this.funds,
+      new Big_Num(1, 3),
+      new Big_Num(2, 0),
+      this.score,
+      new Big_Num(3, -1)
+    );
+
+    this.upgrades.Quest_speed = new Cost_Multiply_Upgrade(
+      this.multi,
+      new Big_Num(1, 2),
+      new Big_Num(1.5, 0),
+      this.upgrades.Quest_labor,
+      new Big_Num(0.25, -1)
+    );
   }
 
   text_UI() {
-    document.getElementById("score_text").innerText =
-      this.score.count.format();
+    document.querySelectorAll(".score").forEach(score => {
+      score.innerText = this.score.count.format();
+    });
 
     document.getElementById("fund_text").innerText =
       this.funds.count.format();
@@ -690,11 +749,12 @@ class Game {
 
     document.getElementById("super-gain-text").innerText =
       this.super.Earn_display();
+
+    updateUpgradeButtons();
   }
 }
 
 const game = new Game();
-
 
 const sounds = {
     gacha: new Audio("gacha.wav"),
@@ -738,11 +798,18 @@ function setupHoldButton(button, upgrade) {
 
     if (!success) return;
 
+    game.text_UI();
+
     hold_interval = setInterval(() => {
+
       if (!upgrade.buy()) {
         stopUpgrade();
+        return;
       }
-    }, 50);
+
+      game.text_UI();
+
+    }, 150);
   }
 
   function stopUpgrade() {
@@ -754,30 +821,53 @@ function setupHoldButton(button, upgrade) {
   button.addEventListener("pointerup", stopUpgrade);
   button.addEventListener("pointerleave", stopUpgrade);
   button.addEventListener("pointercancel", stopUpgrade);
-  button.addEventListener("contextmenu", event => event.preventDefault());
+
+  button.addEventListener("contextmenu", event => {
+    event.preventDefault();
+  });
 }
 
-function createUpgradeButton(upgrade, name) {
+function updateUpgradeButtons() {
+  upgradeButtons.forEach(({ upgrade, button }) => {
+
+    const canBuy = upgrade.currency.count
+      .compare(upgrade.cost) >= 0;
+
+    button.classList.toggle("can-buy", canBuy);
+
+  });
+}
+
+const upgradeButtons = [];
+
+function createUpgradeButton(upgrade, k_name, e_name, contsiner) {
   const button = document.createElement("button");
 
-  button.className = "upgrade_btn";
-  button.innerText = name;
+  button.classList.add("upgrade_btn");
 
-  document.getElementById("upgrade_container").appendChild(button);
+  button.innerHTML = `
+    <span class="language korean">${k_name}</span>
+    <span class="language english">${e_name}</span>
+  `;
 
-  upgrade.button = button;
+  // 꾹 누르기 기능 연결
   setupHoldButton(button, upgrade);
 
-  return button;
-}
+  // 버튼 등록
+  upgradeButtons.push({ upgrade, button });
 
+  document.getElementById(contsiner)
+    .appendChild(button);
+
+  updateUpgradeButtons();
+}
 // ========================================
 // 8. 룬 뽑기
 // ========================================
 
 function drawRune() {
   const language = document.getElementById("language-button");
-  const cost = new Big_Num(1, 2);
+  const cost = new Big_Num(2.5, 1);
 
   if (game.score.count.lt(cost)) {
     if (language.textContent.trim() == "한국어") {
@@ -796,7 +886,7 @@ function drawRune() {
   const rune = game.grade_rune_pack.roll();
 
   document.getElementById("rune-result").textContent =
-    `${rune.name} 획득!`;
+    `${rune.name}!`;
 
   updateRuneInventory();
   game.text_UI();
@@ -826,7 +916,7 @@ const SAVE_KEY = "nameless_prestige_save";
 // 9-1. 저장 데이터 설정
 // ========================================
 
-const SAVE_VERSION = 4;
+const SAVE_VERSION = 5;
 
 const BACKUP_KEY = SAVE_KEY + "_backup";
 
@@ -876,7 +966,9 @@ function isValidSaveData(data) {
     "mega",
     "score",
     "ascension",
-    "super"
+    "super",
+    "Quest_labor_cost",
+    "Quest_speed_cost"
   ];
 
   for (const key of currencies) {
@@ -931,6 +1023,15 @@ function createSaveData() {
     score: serializeCurrency(game.score),
     ascension: serializeCurrency(game.ascension),
     super: serializeCurrency(game.super),
+    Quest_labor_cost: {
+      mantissa: game.upgrades.Quest_labor.cost.mantissa,
+      exponent: game.upgrades.Quest_labor.cost.exponent
+    },
+
+    Quest_speed_cost: {
+      mantissa: game.upgrades.Quest_speed.cost.mantissa,
+      exponent: game.upgrades.Quest_speed.cost.exponent
+    },
     language: document.getElementById("language-button").textContent.trim(),
 
     dark_mode: document.getElementById("Dark_Mode_Checkbox").checked,
@@ -1002,6 +1103,20 @@ function migrateSaveData(data) {
 
     data.version = 4;
     version = 4;
+  }
+
+  if (version === 4) {
+    data.Quest_labor_cost = {
+      mantissa: 1,
+      exponent: 3
+    };
+    data.Quest_speed_cost = {
+      mantissa: 1,
+      exponent: 2
+    };
+
+    data.version = 5;
+    version = 5;
   }
 
   return data;
@@ -1078,6 +1193,16 @@ function applySaveData(saveData) {
     ["ascension", game.ascension],
     ["super", game.super]
   ];
+
+  game.upgrades.Quest_labor.cost = new Big_Num(
+    saveData.Quest_labor_cost.mantissa,
+    saveData.Quest_labor_cost.exponent
+  );
+
+  game.upgrades.Quest_speed.cost = new Big_Num(
+    saveData.Quest_speed_cost.mantissa,
+    saveData.Quest_speed_cost.exponent
+  );
 
   for (const [key, currency] of currencies) {
     restoreCurrency(currency, saveData[key]);
@@ -1231,6 +1356,8 @@ function get_update(delta) {
     .mul(game.ultra.count.add(1))
     .mul(game.prestige.count.add(1))
     .mul(game.mega.count.add(1))
+    .mul(game.ascension.count.add(1))
+    .mul(game.super.count.add(1))
     .mul(new Big_Num(delta, 0));
 
   const down = new Big_Num(3, -1);
@@ -1244,17 +1371,6 @@ function get_update(delta) {
   }
 
   game.funds.count = game.funds.count.add(produce);
-
-  let score_up = new Big_Num(0, 0);
-
-  if (produce.gt(0)) {
-    score_up = produce.add(1)
-      .log10()
-      .mul(new Big_Num(delta, 0))
-      .div(new Big_Num(1, 2));
-  }
-
-  game.score.count = game.score.count.add(score_up);
 }
 
 function scroll() {
@@ -1405,19 +1521,18 @@ function dropdown_btn_ui(btn_id, dropdown_id) {
 
 function get_language() {
   const language = document.getElementById("language-button");
-
+  document.querySelectorAll(".language.english").forEach(english => {
+    english.classList.add("locked")
+  });
+  document.querySelectorAll(".language.korean").forEach(korean => {
+    korean.classList.add("locked")
+  });
   if (language.textContent.trim() == "한국어") {
     document.querySelectorAll(".language.korean").forEach(korean => {
       korean.classList.remove("locked")
     });
-    document.querySelectorAll(".language.english").forEach(english => {
-      english.classList.add("locked")
-    });
   }
   else {
-    document.querySelectorAll(".language.korean").forEach(korean => {
-      korean.classList.add("locked")
-    });
     document.querySelectorAll(".language.english").forEach(english => {
       english.classList.remove("locked")
     });
@@ -1465,6 +1580,8 @@ sound_slider_ui_update();
 
 dropdown_btn_ui("language-button", "language-dropdown");
 
+createUpgradeButton(game.upgrades.Quest_labor, "퀘스트-1: 막노동", "Quest-1: labor", "quest_container");
+createUpgradeButton(game.upgrades.Quest_speed, "퀘스트-2: 더 빠르게", "Quest-2: speedy", "quest_container");
 
 let lastTime = performance.now();
 
